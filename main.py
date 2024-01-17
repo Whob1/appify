@@ -1,9 +1,9 @@
-from httpx      import Client
-from base64     import b64encode
-from time       import sleep
-from colorama   import Fore, init
-from time       import strftime
-from json       import loads
+from httpx import Client
+from base64 import b64encode
+from time import sleep
+from colorama import Fore, init
+from time import strftime
+from json import loads, JSONDecodeError
 
 init(autoreset=True)
 
@@ -26,7 +26,7 @@ class Scrape:
 
     def do_request(self, url) -> dict:
         return self.session.get(
-            url     = url,
+            url = url,
             headers = self.headers,
         ).json()
 
@@ -38,13 +38,14 @@ class Scrape:
 
     def get_data(self) -> dict:
         info = self.get_info()
+        channels = self.get_channels()
+
         return {
             "info"      : info,
-            "channels"  : self.get_channels(),
-            "roles"     : info["roles"],
-            "emojis"    : info["emojis"],
+            "channels"  : channels,
+            "roles"     : info.get("roles", []),
+            "emojis"    : info.get("emojis", []),
         }
-
 
 class Create:
     def __init__(self, token: str, data: dict) -> None:
@@ -53,7 +54,7 @@ class Create:
         self.session    = Client()
         self.data       = data
         self.headers    = {"Authorization": self.token}
-        self.delay      = 0.5 # i woudn't change this
+        self.delay      = 0.5  # I wouldn't change this 
 
     def create_server(self):
         p("[>] Creating server")
@@ -72,6 +73,8 @@ class Create:
             headers = self.headers,
             json    = data,
         ).json()
+
+        print(res)  # Added row
 
         self.id         = res["id"]
         self.everyone   = res["roles"][0]["id"]
@@ -110,14 +113,14 @@ class Create:
 
     def delete_channels(self):
         channels = self.session.get(
-            url     = f"{self.baseurl}/guilds/{self.id}/channels",
-            headers = self.headers,
+            url=f"{self.baseurl}/guilds/{self.id}/channels",
+            headers=self.headers,
         ).json()
 
         for channel in channels:
             s = self.session.delete(
-                url     = f"{self.baseurl}/channels/{channel['id']}",
-                headers = self.headers,
+                url=f"{self.baseurl}/channels/{channel['id']}",
+                headers=self.headers,
             ).status_code
 
             p(f"[+] Deleted channel {channel['name']} -> {s}" if s == 200 else f"[-] Failed to delete channel {channel['name']} -> {s}")
@@ -231,17 +234,29 @@ class Create:
             self.create_channels,
             self.create_roles,
             self.create_emojis,
-        ] # phish will hate
+        ] 
         for task in tasks:
-            try: task()
+            try:
+                task()
             except Exception as e:
                 p(f"[*] {e}")
                 pass
-
 
 if __name__ == "__main__":
     config  = loads(open("config.json", "r").read())
     token   = config["token"]
     id      = input("[?] Server ID: ")
-    data    = Scrape(token, id).get_data()
-    Create(token, data).all()
+    
+    # Create an instance of the Scrape class
+    scraper = Scrape(token, id)
+    
+    # call get_data function
+    data = scraper.get_data()
+    
+    # Create an instance of the Create class and start operations
+    creator = Create(token, data)
+    creator.all()
+
+    # Wait for user input before exiting
+    input("Press any key to exit...")
+

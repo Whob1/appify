@@ -1,1 +1,4 @@
-pypresencediscordcoloramaserverclone
+pypresence
+discord
+colorama
+httpx
