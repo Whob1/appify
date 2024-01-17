@@ -1,9 +1,14 @@
 from httpx import Client
 from base64 import b64encode
 from time import sleep
-from colorama import Fore, init
+from colorama import Fore, Back, Style, init
 from time import strftime
 from json import loads, JSONDecodeError
+import time
+import os
+
+
+
 
 init(autoreset=True)
 
@@ -242,21 +247,51 @@ class Create:
                 p(f"[*] {e}")
                 pass
 
+
+init(autoreset=True)
+
+def print_blinking_banner(banner, blink_duration=1.5, blink_rate=0.3):
+    start_time = time.time()
+    elapsed_time = 0
+
+    while elapsed_time < blink_duration:
+        os.system("cls" if os.name == "nt" else "clear")  # Clean Window
+        print(banner)
+        time.sleep(blink_rate)
+        os.system("cls" if os.name == "nt" else "clear")  # Clean Window
+        time.sleep(blink_rate)
+        elapsed_time = time.time() - start_time
+
+def print_banner():
+    banner = f"""
+{Fore.RED}     ______   ________  _______   __     __  ________  _______          ______   __         ______   __    __  ________ 
+{Fore.BLUE}    /      \ /        |/       \ /  |   /  |/        |/       \        /      \ /  |       /      \ /  \  /  |/        |
+{Fore.GREEN}   /$$$$$$  |$$$$$$$$/ $$$$$$$  |$$ |   $$ |$$$$$$$$/ $$$$$$$  |      /$$$$$$  |$$ |      /$$$$$$  |$$  \ $$ |$$$$$$$$/ 
+{Fore.YELLOW}   $$ \__$$/ $$ |__    $$ |__$$ |$$ |   $$ |$$ |__    $$ |__$$ |      $$ |  $$/ $$ |      $$ |  $$ |$$$  \$$ |$$ |__    
+{Fore.RED}   $$      \ $$    |   $$    $$< $$  \ /$$/ $$    |   $$    $$<       $$ |      $$ |      $$ |  $$ |$$$$  $$ |$$    |   
+{Fore.GREEN}   $$$$$$  |$$$$$/    $$$$$$$  | $$  /$$/  $$$$$/    $$$$$$$  |      $$ |   __ $$ |      $$ |  $$ |$$ $$ $$ |$$$$$/    
+{Fore.RED}   /  \__$$ |$$ |_____ $$ |  $$ |  $$ $$/   $$ |_____ $$ |  $$ |      $$ \__/  |$$ |_____ $$ \__$$ |$$ |$$$$ |$$ |_____ 
+{Fore.BLUE}   $$    $$/ $$       |$$ |  $$ |   $$$/    $$       |$$ |  $$ |      $$    $$/ $$       |$$    $$/ $$ | $$$ |$$       |
+{Fore.GREEN}   $$$$$$/  $$$$$$$$/ $$/   $$/     $/     $$$$$$$$/ $$/   $$/        $$$$$$/  $$$$$$$$/  $$$$$$/  $$/   $$/ $$$$$$$$/ 
+                                                                                                                     
+                                                                                                                                                                                                                                
+    """
+
+    return banner
+
 if __name__ == "__main__":
-    config  = loads(open("config.json", "r").read())
-    token   = config["token"]
-    id      = input("[?] Server ID: ")
-    
-    # Create an instance of the Scrape class
+    config = loads(open("config.json", "r").read())
+    token = config["token"]
+
+    blinking_banner = print_banner()
+    print_blinking_banner(blinking_banner)
+
+    id = input("⭐ Server ID: ")
+
     scraper = Scrape(token, id)
-    
-    # call get_data function
     data = scraper.get_data()
-    
-    # Create an instance of the Create class and start operations
     creator = Create(token, data)
     creator.all()
 
-    # Wait for user input before exiting
     input("Press any key to exit...")
 
