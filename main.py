@@ -8,8 +8,6 @@ import time
 import os
 
 
-
-
 init(autoreset=True)
 
 def p(text: str) -> None:
@@ -60,6 +58,7 @@ class Create:
         self.data       = data
         self.headers    = {"Authorization": self.token}
         self.delay      = 0.5  # I wouldn't change this 
+        self.id         = None  # Bu satır eklenmiştir, self.id'yi başlatıcı metotta tanımlayın.
 
     def create_server(self):
         p("[>] Creating server")
@@ -81,7 +80,7 @@ class Create:
 
         print(res)  # Added row
 
-        self.id         = res["id"]
+        self.id         = res["id"]  # Corrected line
         self.everyone   = res["roles"][0]["id"]
         url             = f"{self.baseurl}/guilds/{self.id}/roles/{self.everyone}"
         data            = {
@@ -131,7 +130,7 @@ class Create:
             p(f"[+] Deleted channel {channel['name']} -> {s}" if s == 200 else f"[-] Failed to delete channel {channel['name']} -> {s}")
 
     def create_channels(self):
-        parentchannels = sorted([channel for channel in self.data["channels"] if channel["type"] == 4] , key=lambda x: x["position"])
+        parentchannels = sorted([channel for channel in self.data["channels"] if channel["type"] == 4], key=lambda x: x["position"])
         prnt = {}
 
         p(f"[>] Creating {len(parentchannels)} parent channels")
@@ -150,13 +149,17 @@ class Create:
             )
 
             p(f"[+] Created channel {channel['name']} -> {res.status_code}" if res.status_code == 201 else f"[-] Failed to create channel {channel['name']} -> {res.status_code}")
-            prnt[channel["id"]] = res.json()["id"]
+
+            if res.status_code == 201:
+                prnt[channel["id"]] = res.json()["id"]
+
             sleep(self.delay)
 
         p(f"[>] Creating {len(self.data['channels']) - len(parentchannels)} channels")
 
         for channel in self.data["channels"]:
-            if channel["type"] == 4: continue
+            if channel["type"] == 4:
+                continue
 
             data = {
                 "name"                  : channel["name"],
@@ -165,13 +168,14 @@ class Create:
             }
 
             if channel["parent_id"]:
-                data  ["parent_id"] = prnt[channel["parent_id"]]
+                data["parent_id"] = prnt[channel["parent_id"]]
 
             res = self.session.post(
                 url     = f"{self.baseurl}/guilds/{self.id}/channels",
                 headers = self.headers,
                 json    = data,
             )
+
             p(f"[+] Created channel {channel['name']} -> {res.status_code}" if res.status_code == 201 else f"[-] Failed to create channel {channel['name']} -> {res.status_code}")
             sleep(self.delay)
 
@@ -188,6 +192,7 @@ class Create:
                         if permission["id"] == role["id"]:
                             permission["id"] = self.everyone
                 continue
+
             data = {
                 "name"          : role["name"],
                 "permissions"   : role["permissions"],
@@ -204,14 +209,17 @@ class Create:
                 json    = data,
             )
 
-            p(f"[+] Created role {role['name']} -> {res.status_code}" if res.status_code == 200 else f"[-] Failed to create role {role['name']} -> {res.status_code})")
+            p(f"[+] Created role {role['name']} -> {res.status_code}" if res.status_code == 200 else f"[-] Failed to create role {role['name']} -> {res.status_code}")
 
-            for channel in self.data["channels"]:
-                if channel["type"] == 4: continue
+            if res.status_code == 200:
+                for channel in self.data["channels"]:
+                    if channel["type"] == 4:
+                        continue
 
-                for permission in channel["permission_overwrites"]:
-                    if permission["id"] == role["id"]:
-                        permission["id"] = res.json()["id"]
+                    for permission in channel["permission_overwrites"]:
+                        if permission["id"] == role["id"]:
+                            permission["id"] = res.json()["id"]
+
             sleep(self.delay)
 
     def create_emojis(self):
@@ -286,12 +294,21 @@ if __name__ == "__main__":
     blinking_banner = print_banner()
     print_blinking_banner(blinking_banner)
 
-    id = input("⭐ Server ID: ")
+    source_server_id = input("⭐ Source Server ID: ")
+    target_server_id = input("⭐ Target Server ID: ")  # Enter your own server ID
 
-    scraper = Scrape(token, id)
-    data = scraper.get_data()
-    creator = Create(token, data)
-    creator.all()
+    # Get source server information
+    source_scraper = Scrape(token, source_server_id)
+    source_data = source_scraper.get_data()
+
+    # Get target server information
+    target_scraper = Scrape(token, target_server_id)
+    target_data = target_scraper.get_data()
+
+    # Create the target server
+    target_creator = Create(token, source_data)
+    target_creator.all()
 
     input("Press any key to exit...")
+
 

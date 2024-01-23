@@ -29,6 +29,15 @@
 ```
 ---
 
+## :fire: Update
+```sh-session
+✔ code optimized
+✔ unnecessary codes removed
+✔ Most bugs fixed
+✔ The server id copying part has been fixed
+```
+---
+
 ## Important!
 
 + If you want to use the application quickly and smoothly without any errors, I recommend you to download the newest and most updated version from the "Relase" section.
