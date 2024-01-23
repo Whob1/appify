@@ -29,7 +29,7 @@
 ```
 ---
 
-## :fire: Update
+## 🛸 Update
 ```sh-session
 ✔ code optimized
 ✔ unnecessary codes removed
