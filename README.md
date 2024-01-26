@@ -9,6 +9,10 @@
   </kbd>
 </p>
 
+## 🔑・Important!
+```js
+・ If you want to use the application quickly and smoothly without any errors, I recommend you to download the newest and most updated version from the "Relase" section.
+```
 
 ---
 
@@ -38,9 +42,6 @@
 ```
 ---
 
-## Important!
-
-+ If you want to use the application quickly and smoothly without any errors, I recommend you to download the newest and most updated version from the "Relase" section.
 
 <img src="https://cdn.discordapp.com/attachments/1004679809365975100/1082734735043866784/Screenshot_2023-03-07_194056.png">
 
