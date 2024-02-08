@@ -4,6 +4,7 @@ from colorama import Fore, init
 from time import strftime
 import re
 import json
+import csv
 
 init(autoreset=True)
 
@@ -44,7 +45,7 @@ class Scrape:
                 "info": info,
                 "channels": channels,
                 "roles": info.get("roles", []),
-                "emojis": info.get("emojis", []),
+                "emojis": info.get("emojis", [])
             }
         else:
             channel = self.get_channel(scope)
@@ -60,11 +61,33 @@ def preprocess_text(text: str) -> str:
 
 def query_save_format() -> str:
     while True:
-        user_input = input("Enter the format to save the file as (e.g., 'guild-servername-channelname'): ").strip()
-        if re.match(r'^[\w\-]+$', user_input):
+        user_input = input("Enter the format to save the file as (e.g., 'json' or 'csv'): ").strip().lower()
+        if user_input in ['json', 'csv']:
             return user_input
         else:
-            print("Invalid format. Please use only letters, numbers, hyphens, and underscores.")
+            print("Invalid format. Please enter 'json' or 'csv'.")
+
+def save_data(data, format, file_name):
+    if format == 'json':
+        with open(f"{file_name}.json", 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+        p("Data saved in JSON format.")
+    elif format == 'csv':
+        if 'info' in data:
+            keys = data['info'].keys()
+            with open(f"{file_name}.csv", 'w', newline='', encoding='utf-8') as output_file:
+                dict_writer = csv.DictWriter(output_file, keys)
+                dict_writer.writeheader()
+                dict_writer.writerow(data['info'])
+        elif 'channel' in data:
+            keys = data['channel'].keys()
+            with open(f"{file_name}.csv", 'w', newline='', encoding='utf-8') as output_file:
+                dict_writer = csv.DictWriter(output_file, keys)
+                dict_writer.writeheader()
+                dict_writer.writerow(data['channel'])
+        p("Data saved in CSV format.")
+    else:
+        p("Unsupported format. Data not saved.")
 
 def get_scope() -> str:
     while True:
@@ -103,6 +126,5 @@ if __name__ == "__main__":
         }
 
     save_format = query_save_format()
-    print(f"Save format selected: {save_format}")
-
-    # Implement logic to save the preprocessed data based on the chosen format
+    file_name = save_format + "_" + (preprocessed_data.get("info", {}).get("name", "data") if scope.lower() == 'server' else "channel_" + scope)
+    save_data(preprocessed_data, save_format, file_name)
