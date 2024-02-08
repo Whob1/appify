@@ -1,4 +1,2 @@
-pypresence
-discord
 colorama
 httpx
