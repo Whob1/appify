@@ -1,15 +1,16 @@
+
+import gc
 import asyncio
 import aiohttp
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from utils import (
-    clean_text, is_valid_url, is_relevant_link, extract_root_domain,
-    match_keywords, summarize_text, extract_keywords, logging, headers, TIMEOUT, AppConfig
+    clean_text, extract_root_domain, match_keywords, AppConfig, logging, headers, TIMEOUT
 )
+from data_handler import DataHandler
 
 CACHE = {}
-CACHE_EXPIRY = 60
-URLS_PER_DOMAIN_LIMIT = 15
+CACHE_EXPIRY = 60  # Cache expiry time in seconds
 
 async def fetch(url, session):
     cache_result = CACHE.get(url)
@@ -24,32 +25,33 @@ async def fetch(url, session):
         logging.error(f"Error fetching {url}: {e}")
         return None
 
-async def parse_html(html_content):
+async def crawl_and_extract(url, session, data_handler):
+    visited = set()
     try:
-        soup = BeautifulSoup(html_content, 'html.parser')
-        text = clean_text(' '.join(soup.stripped_strings))
-        return soup, text
+        html_content = await fetch(url, session)
+        if html_content:
+            soup = BeautifulSoup(html_content, 'html.parser')
+            text = clean_text(' '.join(soup.stripped_strings))
+            if text:
+                data_handler.save_data_chunk({'url': url, 'text': text})
+            for link in soup.find_all('a', href=True):
+                href = link['href']
+                full_url = urljoin(url, href)
+                if full_url not in visited:
+                    visited.add(full_url)
+                    await crawl_and_extract(full_url, session, data_handler)
     except Exception as e:
-        logging.error(f"Error parsing HTML: {e}")
-        return None, None
+        logging.error(f"Error crawling {url}: {e}")
+    finally:
+        gc.collect()
 
-async def crawl_and_score(url, session, visited, domain_scores, discovered_domains, depth=0, max_depth=1):
-    if depth > max_depth or len(visited) >= URLS_PER_DOMAIN_LIMIT:
-        return
-    visited.add(url)
-    html_content = await fetch(url, session)
-    if not html_content:
-        return
-    soup, text = await parse_html(html_content)
-    if not soup:
-        return
-    score = match_keywords(text, AppConfig.KEYWORDS)
-    domain = extract_root_domain(url)
-    domain_scores[domain] = domain_scores.get(domain, 0) + score
-    discovered_domains.add(domain)
-    if depth < max_depth:
-        for link in soup.find_all('a', href=True):
-            href = link['href']
-            full_url = urljoin(url, href)
-            if is_relevant_link(full_url) and full_url not in visited and extract_root_domain(full_url) == domain:
-                await crawl_and_score(full_url, session, visited, domain_scores, discovered_domains, depth + 1, max_depth)
+async def main(urls):
+    data_handler = DataHandler()
+    async with aiohttp.ClientSession() as session:
+        tasks = [crawl_and_extract(url, session, data_handler) for url in urls]
+        await asyncio.gather(*tasks)
+    data_handler.consolidate_data()
+
+if __name__ == "__main__":
+    urls = ['http://example.com']
+    asyncio.run(main(urls))
