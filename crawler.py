@@ -24,7 +24,7 @@ async def fetch(url, session):
         logging.error(f"Error fetching {url}: {e}")
         return None
 
-async def crawl_and_extract(url, session, data_handler):
+async def crawl_and_extract(url, session, data_handler, update_callback):
     visited = set()
     try:
         html_content = await fetch(url, session)
@@ -33,24 +33,29 @@ async def crawl_and_extract(url, session, data_handler):
             text = clean_text(' '.join(soup.stripped_strings))
             if text:
                 data_handler.save_data_chunk({'url': url, 'text': text})
+                update_callback(f"Saved data for {url}")
             for link in soup.find_all('a', href=True):
                 href = link['href']
                 full_url = urljoin(url, href)
                 if full_url not in visited:
                     visited.add(full_url)
-                    await crawl_and_extract(full_url, session, data_handler)
+                    await crawl_and_extract(full_url, session, data_handler, update_callback)
     except Exception as e:
         logging.error(f"Error crawling {url}: {e}")
     finally:
         gc.collect()
 
-async def main(urls):
+async def main(urls, update_callback):
     data_handler = DataHandler()
     async with aiohttp.ClientSession() as session:
-        tasks = [crawl_and_extract(url, session, data_handler) for url in urls]
+        tasks = [crawl_and_extract(url, session, data_handler, update_callback) for url in urls]
         await asyncio.gather(*tasks)
     data_handler.consolidate_data()
+    update_callback("Data consolidation completed")
 
 if __name__ == "__main__":
-    urls = ['http://example.com']
-    asyncio.run(main(urls))
+    urls = ['http://example.com']  # Initial URLs to start the crawl
+    # Example update_callback function, replace with actual GUI callback
+    def update_callback(message):
+        print(message)
+    asyncio.run(main(urls, update_callback))
