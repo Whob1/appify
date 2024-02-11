@@ -3,10 +3,9 @@ import asyncio
 import aiohttp
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
-from utils import (
-    clean_text, extract_root_domain, match_keywords, AppConfig, logging, headers, TIMEOUT
-)
+from utils import clean_text, extract_root_domain, logging, headers, TIMEOUT
 from data_handler import DataHandler
+from collections import deque
 
 class Crawler:
     def __init__(self, update_callback):
@@ -14,6 +13,7 @@ class Crawler:
         self.is_running = False
         self.data_handler = DataHandler()
         self.update_callback = update_callback
+        self.domains_to_crawl = deque()
 
     async def fetch(self, url):
         try:
@@ -33,7 +33,7 @@ class Crawler:
             soup = BeautifulSoup(content, 'html.parser')
             text = clean_text(' '.join(soup.stripped_strings))
             if text:
-                self.data_handler.save_data_chunk({'url': url, 'text': text})
+                await self.data_handler.save_data_chunk({'url': url, 'text': text})
                 self.update_callback(f"Saved data for {url}")
             for link in soup.find_all('a', href=True):
                 href = link['href']
@@ -41,14 +41,16 @@ class Crawler:
                 if extract_root_domain(full_url) == extract_root_domain(url) and full_url not in visited:
                     await self.crawl_and_extract(full_url, visited)
 
-    async def start(self, urls):
+    async def start(self, initial_urls):
         if self.is_running:
             return
         self.is_running = True
-        self.session = aiohttp.ClientSession()
+        self.session = await aiohttp.ClientSession()
 
-        tasks = [self.crawl_and_extract(url, set()) for url in urls]
-        await asyncio.gather(*tasks)
+        self.domains_to_crawl.extend(initial_urls)
+        while self.domains_to_crawl and self.is_running:
+            current_url = self.domains_to_crawl.popleft()
+            await self.crawl_and_extract(current_url, set())
 
         await self.session.close()
         await self.data_handler.consolidate_data()
@@ -62,13 +64,12 @@ class Crawler:
 
     async def add_domain(self, domain):
         if self.is_running:
-            url = f"http://{domain}"
-            await self.crawl_and_extract(url, set())
+            self.domains_to_crawl.append(f"http://{domain}")
 
 # Example usage
 if __name__ == "__main__":
     def update_callback(message):
-        print(message)  # Integrate with Flask's real-time update mechanism here
+        print(message)  # This should be adapted for real-time Flask updates
 
     crawler = Crawler(update_callback)
     urls = ['http://example.com']  # Starting URLs for the crawl
