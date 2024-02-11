@@ -1,4 +1,3 @@
-```python
 import logging
 import os
 import re
@@ -37,7 +36,7 @@ class AppConfig:
 
 # Function to clean text
 def clean_text(text):
-    return re.sub(r'\s+', ' ', re.sub(r'\W', ' ', text)).strip()
+    return re.sub(r'\\s+', ' ', re.sub(r'\\W', ' ', text)).strip()
 
 # Function to validate URLs
 def is_valid_url(url):
