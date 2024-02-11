@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Crawler Control</title>
+</head>
+<body>
+    <h1>Web Crawler Control Panel</h1>
+
+    <div>Status: {{ status }}</div>
+
+    <form action="/start" method="post">
+        <button type="submit">Start Crawler</button>
+    </form>
+
+    <form action="/stop" method="post">
+        <button type="submit">Stop Crawler</button>
+    </form>
+
+    <form action="/add_domain" method="post">
+        <input type="text" name="domain" placeholder="Enter domain" required>
+        <button type="submit">Add Domain</button>
+    </form>
+</body>
+</html>
