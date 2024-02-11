@@ -3,9 +3,10 @@ import json
 from utils import DOMAINS_FILE, DATA_FILE
 
 def save_to_csv(data, filename=DATA_FILE):
-    with open(filename, mode='w', newline='', encoding='utf-8') as f:
+    with open(filename, mode='a', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=['url', 'score', 'keywords', 'summarized_text'])
-        writer.writeheader()
+        if f.tell() == 0:
+            writer.writeheader()
         writer.writerows(data)
 
 def save_domain_scores(domain_scores):
