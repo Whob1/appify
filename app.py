@@ -13,14 +13,14 @@ def update_callback(message):
     """Callback function to receive messages from the crawler."""
     messages.put(message)  # Add message to the queue
 
-def start_crawler_background():
-    """Function to start the crawler within a new event loop."""
+def start_crawler_background(start_urls):
+    """Function to start the crawler with given start URLs within a new event loop."""
     global crawler
-    if crawler is None:
+    if crawler is None or not crawler.is_running:
         crawler = Crawler(update_callback=update_callback)
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(crawler.start(['http://example.com']))  # Provide initial URLs
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(crawler.start(start_urls))
 
 def stop_crawler_background():
     """Function to stop the crawler within its event loop."""
@@ -40,8 +40,9 @@ def add_domain_background(domain):
 
 @app.route('/start', methods=['POST'])
 def start():
-    """Flask route to start the crawler."""
-    Thread(target=start_crawler_background, daemon=True).start()
+    """Flask route to start the crawler with specified start URLs."""
+    start_urls = request.form.getlist('start_urls')  # Assuming a form field with name 'start_urls'
+    Thread(target=start_crawler_background, args=(start_urls,), daemon=True).start()
     return redirect(url_for('index'))
 
 @app.route('/stop', methods=['POST'])
