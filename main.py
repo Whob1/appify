@@ -25,5 +25,4 @@ async def main(start_urls):
             break
 
 if __name__ == "__main__":
-    start_urls = ['http://example.com']
-    asyncio.run(main(start_urls))
+    asyncio.run(main(['http://example.com']))
