@@ -1,17 +1,13 @@
 import csv
 import json
+from utils import DOMAINS_FILE, DATA_FILE
 
-def save_to_csv(data, filename):
+def save_to_csv(data, filename=DATA_FILE):
     with open(filename, mode='w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=['url', 'score', 'text'])
+        writer = csv.DictWriter(f, fieldnames=['url', 'score', 'keywords', 'summarized_text'])
         writer.writeheader()
-        for item in data:
-            writer.writerow(item)
+        writer.writerows(data)
 
-def identify_relevant_domains(crawled_data, score_threshold):
-    new_domains = set()
-    for item in crawled_data:
-        if item['score'] > score_threshold:
-            domain = extract_root_domain(item['url'])  # Assuming extract_root_domain is defined in utils.py
-            new_domains.add(domain)
-    return list(new_domains)
+def save_domain_scores(domain_scores):
+    with open(DOMAINS_FILE, 'w') as file:
+        json.dump(domain_scores, file, indent=4)
