@@ -50,12 +50,12 @@ async def main(urls, update_callback):
     async with aiohttp.ClientSession() as session:
         tasks = [crawl_and_extract(url, session, data_handler, update_callback) for url in urls]
         await asyncio.gather(*tasks)
-    data_handler.consolidate_data()
+    await data_handler.consolidate_data()
     update_callback("Data consolidation completed")
 
 if __name__ == "__main__":
-    urls = ['http://example.com']  # Initial URLs to start the crawl
-    # Example update_callback function, replace with actual GUI callback
     def update_callback(message):
-        print(message)
+        print(message)  # Replace with actual GUI callback in Flask app
+
+    urls = ['http://example.com']
     asyncio.run(main(urls, update_callback))
