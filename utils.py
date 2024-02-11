@@ -57,3 +57,12 @@ def extract_keywords(text):
     rake = Rake()
     rake.extract_keywords_from_text(text)
     return rake.get_ranked_phrases()[:5]
+
+KEYWORDS = [
+    'safer use', 'harm reduction', 'risk reduction',
+    'overdose', 'tolerance', 'roa', 'dose', 'duration', 'onset', 'peak',
+    'interactions', 'Central', 'Nervous', 'System', 'Depressant', 'Stimulant', 'Hallucinogen',
+    'Dissociative', 'Anesthetic', 'Narcotic', 'Analgesic', 'Inhalant', 'Cannabis',
+    'Opioid', 'Amphetamine', 'Methamphetamine', 'Cocaine', 'Crack',
+    # Add more keywords as needed
+]
