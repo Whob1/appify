@@ -1,56 +1,43 @@
-from flask import Flask, render_template, request, redirect, url_for, Response
+from quart import Quart, render_template, request, redirect, url_for, websocket
 import asyncio
 from crawler import Crawler
-from threading import Thread
-from queue import Queue
-import time
 import json
-import aiohttp
 
-app = Flask(__name__)
+app = Quart(__name__)
 
 class CrawlerManager:
     def __init__(self):
         self.crawler = None
-        self.loop = None
-    
-    def update_callback(self, data):
-        messages.put(data)
 
-    def start_crawler(self, start_urls):
+    async def update_callback(self, data):
+        await websocket.send(json.dumps(data))
+
+    async def start_crawler(self, start_urls):
         if not self.crawler or not self.crawler.is_running:
             self.crawler = Crawler(self.update_callback)
-            self.loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self.loop)
-            self.loop.run_until_complete(self.crawler.start(start_urls))
-    
-    def stop_crawler(self):
-        if self.crawler and self.crawler.is_running:
-            self.loop.run_until_complete(self.crawler.stop())
-            self.loop.close()
+            await self.crawler.start(start_urls)
 
-    def pause_crawler(self):
+    async def stop_crawler(self):
         if self.crawler and self.crawler.is_running:
-            self.loop.run_until_complete(self.crawler.pause())
+            await self.crawler.stop()
 
-    def resume_crawler(self):
+    async def pause_crawler(self):
+        if self.crawler and self.crawler.is_running:
+            await self.crawler.pause()
+
+    async def resume_crawler(self):
         if self.crawler and not self.crawler.is_running:
-            self.loop.run_until_complete(self.crawler.resume())
+            await self.crawler.resume()
 
 crawler_manager = CrawlerManager()
-messages = Queue()
 
 @app.route('/start', methods=['POST'])
 async def start():
     try:
-        start_urls_input = request.form.get('start_urls', '')
+        start_urls_input = await request.form.get('start_urls', '')
         start_urls = [url.strip() for url in start_urls_input.split(',') if url.strip()]
-        
-        # Check and correct protocols asynchronously
-        start_urls = await asyncio.gather(*(check_https(url) for url in start_urls if not url.startswith(('http://', 'https://'))))
-
         if start_urls:
-            Thread(target=crawler_manager.start_crawler, args=(start_urls,), daemon=True).start()
+            await crawler_manager.start_crawler(start_urls)
         else:
             app.logger.error("No valid start URLs provided.")
     except Exception as e:
@@ -58,46 +45,38 @@ async def start():
     return redirect(url_for('index'))
 
 @app.route('/stop', methods=['POST'])
-def stop():
+async def stop():
     try:
-        Thread(target=crawler_manager.stop_crawler, daemon=True).start()
+        await crawler_manager.stop_crawler()
     except Exception as e:
         app.logger.error(f"Error stopping crawler: {e}")
     return redirect(url_for('index'))
 
 @app.route('/pause', methods=['POST'])
-def pause():
+async def pause():
     try:
-        Thread(target=crawler_manager.pause_crawler, daemon=True).start()
+        await crawler_manager.pause_crawler()
     except Exception as e:
         app.logger.error(f"Error pausing crawler: {e}")
     return redirect(url_for('index'))
 
 @app.route('/resume', methods=['POST'])
-def resume():
+async def resume():
     try:
-        Thread(target=crawler_manager.resume_crawler, daemon=True).start()
+        await crawler_manager.resume_crawler()
     except Exception as e:
         app.logger.error(f"Error resuming crawler: {e}")
     return redirect(url_for('index'))
 
 @app.route('/')
-def index():
-    return render_template('index.html')
+async def index():
+    return await render_template('index.html')
 
-@app.route('/stream')
-def stream():
-    def generate():
-        while True:
-            if not messages.empty():
-                message = messages.get()
-                yield f"data: {message}\n\n"
-            else:
-                yield "data: heartbeat\n\n"
-                time.sleep(15)
-    return Response(generate(), mimetype='text/event-stream')
+@app.websocket('/stream')
+async def stream():
+    while True:
+        data = await websocket.receive()
+        await websocket.send(data)
 
 if __name__ == "__main__":
-    host = os.getenv('FLASK_HOST', '0.0.0.0')
-    port = int(os.getenv('FLASK_PORT', 5000))
-    app.run(host=host, port=port, threaded=True)
+    app.run(port=5000, use_reloader=True, debug=True)
