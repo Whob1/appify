@@ -42,8 +42,14 @@ messages = Queue()
 @app.route('/start', methods=['POST'])
 def start():
     try:
-        start_urls = request.form.getlist('start_urls')
-        Thread(target=crawler_manager.start_crawler, args=(start_urls,), daemon=True).start()
+        start_urls_input = request.form.get('start_urls', '')
+        start_urls = [url.strip() for url in start_urls_input.split(',') if url.strip()]
+        start_urls = [f"http://{url}" if not url.startswith(('http://', 'https://')) else url for url in start_urls]
+
+        if start_urls:
+            Thread(target=crawler_manager.start_crawler, args=(start_urls,), daemon=True).start()
+        else:
+            app.logger.error("No valid start URLs provided.")
     except Exception as e:
         app.logger.error(f"Error starting crawler: {e}")
     return redirect(url_for('index'))
