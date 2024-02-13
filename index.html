@@ -9,46 +9,69 @@
         h1 { color: #333; }
         #status { margin-bottom: 20px; }
         form { margin-bottom: 10px; }
-        input[type="text"] { margin-right: 10px; }
+        input[type="text"], button { margin-right: 10px; }
+        #messages { margin-top: 20px; }
     </style>
-    <script type="text/javascript">
-        window.addEventListener("DOMContentLoaded", (event) => {
-            const eventSource = new EventSource("/stream");
-            eventSource.onmessage = function(event) {
-                document.getElementById("status").innerText = event.data;
-            };
-
-            document.getElementById("addDomainForm").addEventListener("submit", function(event) {
-                const domainInput = document.getElementById("domainInput");
-                if (!domainInput.value) {
-                    alert("Please enter a domain.");
-                    event.preventDefault();
-                }
-            });
-        });
-    </script>
 </head>
 <body>
-    <header>
-        <h1>Web Crawler Control Panel</h1>
-    </header>
-    
-    <section id="status">Waiting for updates...</section>
+    <h1>Web Crawler Control Panel</h1>
+    <div id="status">Status: Idle</div>
+    <form id="crawlerForm">
+        <input type="text" id="start_urls" placeholder="Enter start URLs, separated by commas" required>
+        <button type="submit">Start Crawler</button>
+    </form>
+    <button id="stopButton">Stop</button>
+    <button id="pauseButton">Pause</button>
+    <button id="resumeButton">Resume</button>
+    <div id="messages"></div>
 
-    <section>
-        <form action="/start" method="post">
-            <input type="text" name="start_urls" placeholder="Enter fully qualified URLs, comma-separated (e.g., http://example.com, https://example.org)">
-            <button type="submit">Start Crawler</button>
-        </form>
+    <script type="text/javascript">
+        document.getElementById('crawlerForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const startUrls = document.getElementById('start_urls').value;
+            if (!startUrls) {
+                alert('Please enter at least one URL.');
+                return;
+            }
+            // Update status
+            document.getElementById('status').innerText = 'Status: Crawling';
+            try {
+                const response = await fetch('/start', {
+                    method: 'POST',
+                    body: new URLSearchParams({ 'start_urls': startUrls })
+                });
+                if (!response.ok) throw new Error('Failed to start crawler');
+            } catch (error) {
+                alert(error.message);
+            }
+        };
 
-        <form action="/stop" method="post">
-            <button type="submit">Stop Crawler</button>
-        </form>
+        document.getElementById('stopButton').onclick = controlCrawler('/stop');
+        document.getElementById('pauseButton').onclick = controlCrawler('/pause');
+        document.getElementById('resumeButton').onclick = controlCrawler('/resume');
 
-        <form id="addDomainForm" action="/add_domain" method="post">
-            <input type="text" id="domainInput" name="domain" placeholder="Enter domain">
-            <button type="submit">Add Domain</button>
-        </form>
-    </section>
+        function controlCrawler(endpoint) {
+            return async () => {
+                try {
+                    const response = await fetch(endpoint, { method: 'POST' });
+                    if (!response.ok) throw new Error(`Failed to ${endpoint.substring(1)}`);
+                    document.getElementById('status').innerText = `Status: ${capitalizeFirstLetter(endpoint.substring(1))}d`;
+                } catch (error) {
+                    alert(error.message);
+                }
+            };
+        }
+
+        function capitalizeFirstLetter(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+
+        // WebSocket for real-time updates
+        const ws = new WebSocket('ws://' + window.location.host + '/stream');
+        ws.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            document.getElementById('messages').innerText += message + '\n';
+        };
+    </script>
 </body>
 </html>
