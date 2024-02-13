@@ -3,3 +3,4 @@ beautifulsoup4
 tldextract
 rake-nltk
 transformers
+Quart
