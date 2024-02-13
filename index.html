@@ -1,38 +1,53 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Web Crawler Monitor</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Crawler Control Panel</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        h1 { color: #333; }
+        #status { margin-bottom: 20px; }
+        form { margin-bottom: 10px; }
+        input[type="text"] { margin-right: 10px; }
+    </style>
     <script type="text/javascript">
-        // JavaScript for listening to Server-Sent Events
         window.addEventListener("DOMContentLoaded", (event) => {
             const eventSource = new EventSource("/stream");
             eventSource.onmessage = function(event) {
-                // Update the web page with new messages
                 document.getElementById("status").innerText = event.data;
             };
+
+            document.getElementById("addDomainForm").addEventListener("submit", function(event) {
+                const domainInput = document.getElementById("domainInput");
+                if (!domainInput.value) {
+                    alert("Please enter a domain.");
+                    event.preventDefault();
+                }
+            });
         });
     </script>
 </head>
 <body>
-    <h1>Web Crawler Control Panel</h1>
+    <header>
+        <h1>Web Crawler Control Panel</h1>
+    </header>
     
-    <!-- Status messages from the crawler will appear here -->
-    <div id="status">Waiting for updates...</div>
+    <section id="status">Waiting for updates...</section>
 
-    <!-- Form to start the crawler -->
-    <form action="/start" method="post">
-        <button type="submit">Start Crawler</button>
-    </form>
+    <section>
+        <form action="/start" method="post">
+            <button type="submit">Start Crawler</button>
+        </form>
 
-    <!-- Form to stop the crawler -->
-    <form action="/stop" method="post">
-        <button type="submit">Stop Crawler</button>
-    </form>
+        <form action="/stop" method="post">
+            <button type="submit">Stop Crawler</button>
+        </form>
 
-    <!-- Form to add a new domain -->
-    <form action="/add_domain" method="post">
-        <input type="text" name="domain" placeholder="Enter domain">
-        <button type="submit">Add Domain</button>
-    </form>
+        <form id="addDomainForm" action="/add_domain" method="post">
+            <input type="text" id="domainInput" name="domain" placeholder="Enter domain">
+            <button type="submit">Add Domain</button>
+        </form>
+    </section>
 </body>
 </html>
