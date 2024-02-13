@@ -1,4 +1,3 @@
-
 import csv
 import os
 import json
@@ -8,28 +7,36 @@ from utils import DOMAINS_FILE, DATA_FILE, OUTPUT_DIR
 
 class DataHandler:
     def __init__(self):
-        self.temp_files = []
+        self.chunk_index = 0
+        self.chunk_size = 1000  # Adjust based on your needs
 
     def save_data_chunk(self, data):
-        temp_file = NamedTemporaryFile(delete=False, dir=OUTPUT_DIR, mode='w', newline='', encoding='utf-8')
-        writer = csv.DictWriter(temp_file, fieldnames=['url', 'text'])
-        writer.writeheader()
-        writer.writerows(data)
-        self.temp_files.append(temp_file.name)
-        temp_file.close()
+        if len(data) == 0:
+            return
+
+        chunk_path = os.path.join(OUTPUT_DIR, f'chunk_{self.chunk_index}.csv')
+        with open(chunk_path, 'w', newline='', encoding='utf-8') as file:
+            writer = csv.DictWriter(file, fieldnames=['url', 'text'])
+            writer.writeheader()
+            writer.writerows(data)
+
+        self.chunk_index += 1
 
     def consolidate_data(self):
-        with open(DATA_FILE, 'w', newline='', encoding='utf-8') as f_out:
-            writer = csv.writer(f_out)
-            writer.writerow(['url', 'text'])  # Write final CSV header
-            for temp_file in self.temp_files:
-                with open(temp_file, 'r', newline='', encoding='utf-8') as f_in:
-                    reader = csv.reader(f_in)
+        consolidated_path = os.path.join(OUTPUT_DIR, 'consolidated_data.csv')
+        with open(consolidated_path, 'w', newline='', encoding='utf-8') as outfile:
+            writer = csv.writer(outfile)
+            writer.writerow(['url', 'text'])
+
+            for i in range(self.chunk_index):
+                chunk_path = os.path.join(OUTPUT_DIR, f'chunk_{i}.csv')
+                with open(chunk_path, 'r', newline='', encoding='utf-8') as infile:
+                    reader = csv.reader(infile)
                     next(reader)  # Skip header
                     writer.writerows(reader)
-                os.unlink(temp_file)  # Delete temporary file
-        self.temp_files.clear()  # Clear the list of temporary files
+                os.remove(chunk_path)  # Remove chunk file after its content has been written
 
     def save_domain_scores(self, domain_scores):
-        with open(DOMAINS_FILE, 'w') as file:
+        scores_path = os.path.join(OUTPUT_DIR, DOMAINS_FILE)
+        with open(scores_path, 'w') as file:
             json.dump(domain_scores, file, indent=4)
