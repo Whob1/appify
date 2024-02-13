@@ -5,32 +5,33 @@ from summarizer import Summarizer
 from rake_nltk import Rake
 import tldextract
 from urllib.parse import urlparse
+import json
 
-# Dedicated logger for the application
+# Load configuration from a JSON file or environment variables
+config_path = os.getenv('APP_CONFIG_PATH', 'app_config.json')
+if os.path.exists(config_path):
+    with open(config_path, 'r') as config_file:
+        AppConfig = json.load(config_file)
+else:
+    AppConfig = {
+        'OUTPUT_DIR': os.getenv('OUTPUT_DIR', 'output'),
+        'DOMAINS_FILE': os.getenv('DOMAINS_FILE', 'relevant_domains.json'),
+        'DATA_FILE': os.getenv('DATA_FILE', 'crawled_data.csv'),
+        'TIMEOUT': int(os.getenv('TIMEOUT', 10)),
+        'HEADERS': {
+            'User-Agent': os.getenv('USER_AGENT', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36')
+        }
+    }
+
+# Ensure output directory exists
+os.makedirs(AppConfig['OUTPUT_DIR'], exist_ok=True)
+
+# Configure logging
 logger = logging.getLogger('AppLogger')
 logger.setLevel(logging.INFO)
-if not logger.handlers:
-    ch = logging.StreamHandler()
-    ch.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-    logger.addHandler(ch)
-
-class AppConfig:
-    OUTPUT_DIR = 'output'
-    DOMAINS_FILE = 'relevant_domains.json'
-    DATA_FILE = 'crawled_data.csv'
-    TIMEOUT = 10
-    HEADERS = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'
-    }
-    KEYWORDS = [
-        'safer use', 'harm reduction', 'risk reduction',
-        'overdose', 'tolerance', 'roa', 'dose', 'duration', 'onset', 'peak',
-        'interactions', 'Central', 'Nervous', 'System', 'Depressant', 'Stimulant', 'Hallucinogen',
-        'Dissociative', 'Anesthetic', 'Narcotic', 'Analgesic', 'Inhalant', 'Cannabis',
-        'Opioid', 'Amphetamine', 'Methamphetamine', 'Cocaine', 'Crack'
-    ]
-
-os.makedirs(AppConfig.OUTPUT_DIR, exist_ok=True)
+ch = logging.StreamHandler()
+ch.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+logger.addHandler(ch)
 
 def clean_text(text):
     return re.sub(r'\s+', ' ', re.sub(r'\W', ' ', text)).strip()
@@ -42,18 +43,9 @@ def is_valid_url(url):
     except ValueError:
         return False
 
-def is_relevant_link(url):
-    irrelevant_paths = ['/contact', '/about', '/privacy']
-    return not any(irrelevant_path in url for irrelevant_path in irrelevant_paths)
-
 def extract_root_domain(url):
     extracted = tldextract.extract(url)
     return f"{extracted.domain}.{extracted.suffix}"
-
-def match_keywords(text, keywords=AppConfig.KEYWORDS):
-    text_words = set(clean_text(text).lower().split())
-    keyword_set = set(map(str.lower, keywords))
-    return len(text_words & keyword_set)
 
 summarizer = Summarizer()
 rake = Rake()
