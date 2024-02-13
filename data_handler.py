@@ -1,14 +1,12 @@
 import csv
 import os
 import json
-from tempfile import NamedTemporaryFile
-import shutil
-from utils import DOMAINS_FILE, DATA_FILE, OUTPUT_DIR
+from utils import DOMAINS_FILE, DATA_FILE, OUTPUT_DIR, update_callback
 
 class DataHandler:
     def __init__(self):
         self.chunk_index = 0
-        self.chunk_size = 1000  # Adjust based on your needs
+        self.csv_files_saved = 0
 
     def save_data_chunk(self, data):
         if len(data) == 0:
@@ -35,6 +33,9 @@ class DataHandler:
                     next(reader)  # Skip header
                     writer.writerows(reader)
                 os.remove(chunk_path)  # Remove chunk file after its content has been written
+
+        self.csv_files_saved += 1
+        update_callback(json.dumps({"csvSaved": self.csv_files_saved}))
 
     def save_domain_scores(self, domain_scores):
         scores_path = os.path.join(OUTPUT_DIR, DOMAINS_FILE)
