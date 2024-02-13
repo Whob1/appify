@@ -4,78 +4,89 @@ from crawler import Crawler
 from threading import Thread
 from queue import Queue
 import time
+import os
 
 app = Flask(__name__)
-crawler = None
-messages = Queue()  # Queue to hold messages for SSE
+
+class CrawlerManager:
+    def __init__(self):
+        self.crawler = None
+        self.loop = None
+    
+    def start_crawler(self, start_urls, update_callback):
+        if not self.crawler or not self.crawler.is_running:
+            self.crawler = Crawler(update_callback=update_callback)
+            self.loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self.loop)
+            self.loop.run_until_complete(self.crawler.start(start_urls))
+    
+    def stop_crawler(self):
+        if self.crawler and self.crawler.is_running:
+            self.loop.run_until_complete(self.crawler.stop())
+            self.loop.close()
+    
+    def add_domain(self, domain):
+        if self.crawler and self.crawler.is_running:
+            self.loop.run_until_complete(self.crawler.add_domain(domain))
+
+crawler_manager = CrawlerManager()
+messages = Queue()
 
 def update_callback(message):
-    """Callback function to receive messages from the crawler."""
-    messages.put(message)  # Add message to the queue
+    messages.put(message)
 
 def start_crawler_background(start_urls):
-    """Function to start the crawler with given start URLs within a new event loop."""
-    global crawler
-    if crawler is None or not crawler.is_running:
-        crawler = Crawler(update_callback=update_callback)
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(crawler.start(start_urls))
+    crawler_manager.start_crawler(start_urls, update_callback)
 
 def stop_crawler_background():
-    """Function to stop the crawler within its event loop."""
-    global crawler
-    if crawler and crawler.is_running:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(crawler.stop())
+    crawler_manager.stop_crawler()
 
 def add_domain_background(domain):
-    """Function to add a new domain to the crawler within its event loop."""
-    global crawler
-    if crawler and crawler.is_running:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(crawler.add_domain(domain))
+    crawler_manager.add_domain(domain)
 
 @app.route('/start', methods=['POST'])
 def start():
-    """Flask route to start the crawler with specified start URLs."""
-    start_urls = request.form.getlist('start_urls')  # Assuming a form field with name 'start_urls'
-    Thread(target=start_crawler_background, args=(start_urls,), daemon=True).start()
+    try:
+        start_urls = request.form.getlist('start_urls')
+        Thread(target=start_crawler_background, args=(start_urls,), daemon=True).start()
+    except Exception as e:
+        app.logger.error(f"Error starting crawler: {e}")
     return redirect(url_for('index'))
 
 @app.route('/stop', methods=['POST'])
 def stop():
-    """Flask route to stop the crawler."""
-    Thread(target=stop_crawler_background, daemon=True).start()
+    try:
+        Thread(target=stop_crawler_background, daemon=True).start()
+    except Exception as e:
+        app.logger.error(f"Error stopping crawler: {e}")
     return redirect(url_for('index'))
 
 @app.route('/add_domain', methods=['POST'])
 def add_domain():
-    """Flask route to add a new domain to the crawler."""
-    domain = request.form['domain']
-    Thread(target=add_domain_background, args=(domain,), daemon=True).start()
+    try:
+        domain = request.form['domain']
+        Thread(target=add_domain_background, args=(domain,), daemon=True).start()
+    except Exception as e:
+        app.logger.error(f"Error adding domain: {e}")
     return redirect(url_for('index'))
 
 @app.route('/')
 def index():
-    """Flask route to render the main page."""
     return render_template('index.html')
 
 @app.route('/stream')
 def stream():
-    """Flask route to stream real-time updates via SSE."""
     def generate():
         while True:
             if not messages.empty():
-                message = messages.get()  # Retrieve message from the queue
+                message = messages.get()
                 yield f"data: {message}\n\n"
             else:
-                # Send a heartbeat every 15 seconds to keep the connection alive
-                yield f"data: heartbeat\n\n"
+                yield "data: heartbeat\n\n"
                 time.sleep(15)
     return Response(generate(), mimetype='text/event-stream')
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000, threaded=True)
+    host = os.getenv('FLASK_HOST', '0.0.0.0')
+    port = int(os.getenv('FLASK_PORT', 5000))
+    app.run(host=host, port=port, threaded=True)
