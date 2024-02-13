@@ -5,6 +5,7 @@ from threading import Thread
 from queue import Queue
 import time
 import json
+import aiohttp
 
 app = Flask(__name__)
 
@@ -40,11 +41,13 @@ crawler_manager = CrawlerManager()
 messages = Queue()
 
 @app.route('/start', methods=['POST'])
-def start():
+async def start():
     try:
         start_urls_input = request.form.get('start_urls', '')
         start_urls = [url.strip() for url in start_urls_input.split(',') if url.strip()]
-        start_urls = [f"http://{url}" if not url.startswith(('http://', 'https://')) else url for url in start_urls]
+        
+        # Check and correct protocols asynchronously
+        start_urls = await asyncio.gather(*(check_https(url) for url in start_urls if not url.startswith(('http://', 'https://'))))
 
         if start_urls:
             Thread(target=crawler_manager.start_crawler, args=(start_urls,), daemon=True).start()
