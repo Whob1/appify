@@ -1,51 +1,43 @@
+
 import asyncio
 import os
-from crawler import crawl_and_score
-from data_handler import save_to_csv, save_domain_scores
-from aiohttp import ClientSession
-from utils import logger
+from crawler import Crawler
+from data_handler import DataHandler
+from utils import logger, AppConfig
 
-# Configuration settings
-START_URLS = os.getenv("START_URLS", "http://example.com").split(",")
-MAX_RETRIES = int(os.getenv("MAX_RETRIES", 3))
-TOP_DOMAINS_THRESHOLD = int(os.getenv("TOP_DOMAINS_THRESHOLD", 3))
-SCORE_THRESHOLD = int(os.getenv("SCORE_THRESHOLD", 10))
+async def crawl_and_process(start_urls, session):
+    crawler = Crawler(session)
+    data_handler = DataHandler()
+    for url in start_urls:
+        try:
+            await crawler.crawl(url)
+            data = crawler.extract_data()
+            await data_handler.save_data_chunk(data)
+        except Exception as e:
+            logger.error(f"Error processing {url}: {e}")
 
-async def main(start_urls):
-    while True:
-        domain_scores = {}
-        discovered_domains = set()
-        all_data = []
+async def main():
+    start_urls = AppConfig['START_URLS'].split(",")
+    max_retries = AppConfig['MAX_RETRIES']
+    score_threshold = AppConfig['SCORE_THRESHOLD']
+    domain_scores = {}
 
-        async with ClientSession() as session:
-            tasks = []
-            for url in start_urls:
-                for attempt in range(MAX_RETRIES):
-                    try:
-                        task = asyncio.create_task(crawl_and_score(url, session, set(), domain_scores, discovered_domains))
-                        tasks.append(task)
-                        break  # Break the retry loop if successful
-                    except Exception as e:
-                        logger.error(f"Attempt {attempt+1} failed for {url}: {e}")
-                        if attempt == MAX_RETRIES - 1:
-                            logger.error(f"Max retries reached for {url}. Skipping.")
+    async with aiohttp.ClientSession() as session:
+        for _ in range(max_retries):
+            try:
+                await crawl_and_process(start_urls, session)
+                break
+            except Exception as e:
+                logger.error(f"Retry due to error: {e}")
+        
+        # Update domain_scores based on extracted data
+        # Code to update domain_scores goes here
 
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            for result in results:
-                if isinstance(result, Exception):
-                    logger.error(f"Error in crawling: {result}")
-                else:
-                    all_data.extend(result if result else [])
-
-        save_to_csv(all_data)
-        save_domain_scores(domain_scores)
-
-        top_domains = sorted(domain_scores.items(), key=lambda x: x[1], reverse=True)[:TOP_DOMAINS_THRESHOLD]
-        start_urls = [f"http://{domain}" for domain, score in top_domains if score >= SCORE_THRESHOLD]
-
-        if not start_urls:
-            logger.info("No more domains to crawl based on the scoring threshold. Stopping.")
-            break
+    top_domains = {domain: score for domain, score in domain_scores.items() if score >= score_threshold}
+    if top_domains:
+        logger.info(f"Top domains for next crawl: {top_domains}")
+    else:
+        logger.info("No domains meet the score threshold. Stopping.")
 
 if __name__ == "__main__":
-    asyncio.run(main(START_URLS))
+    asyncio.run(main())
